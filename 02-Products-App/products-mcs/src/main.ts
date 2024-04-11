@@ -4,7 +4,7 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { envs } from "src/config/envs";
-import { logWithColor, spacer } from 'src/utilities/coloredOutput';
+import { formattedHostAddress } from 'src/utilities/utils';
 import { AppModule } from './app.module';
 
 // _______________________________________________
@@ -24,22 +24,19 @@ async function bootstrap(): Promise<void> {
 	app.useGlobalPipes(
 		// Validate incoming data with the class-validator package
 		new ValidationPipe({
+			transform: true,
 			// Automatically transform payloads to instances of the DTO classes
 			whitelist: true,
 			// Forbid non-allow listed properties in the DTO classes
 			forbidNonWhitelisted: true,
+			transformOptions: {
+				enableImplicitConversion: true,
+			},
 		}),
 	);
 	
-	// Check that the port number is type `number`
-	const isNumberPort = `\n\n[ IS_THE_PORT_TYPE_OF_NUMBER ${ port }? ]->: ${ !!(typeof port) }\n\n`;
-	// `!!(typeof port)` is the same as `typeof port ? true : false`
-	logWithColor(isNumberPort, 'dodgerBlue', true);
-	
-	// Log the host and port the server is running on
-	const runningOnPort = `Server is running on http://localhost:${ port }`;
-	const result = spacer(runningOnPort, 50);
-	logger.log(result);
+	const result = formattedHostAddress(port);
+  logger.log(result);
 }
 
 // _______________________________________________
@@ -49,5 +46,5 @@ bootstrap().catch((err: unknown): void => {
 		console.error('Error starting the server:', err.message);
 	// Re-throw the error for further handling
 	throw err;
-});
+})
 // _______________________________________________

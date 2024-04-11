@@ -1,4 +1,4 @@
-// FILE: utilities/coloredOutput.ts
+// FILE: utilities/custom-color-loggers.ts
 // _______________________________________________
 // _______________________________________________
 
@@ -49,8 +49,9 @@ export const withColor = (
 };
 // _______________________________________________
 
-export const spacer = (msg: string, spaceCount: number) => {
+export const spacer = (msg: string, spaceCount: number = 0) => {
   const spacer = '-'.repeat(spaceCount);
+  
   const msgResult = `
     ${spacer}\n
   \t${msg}\n
