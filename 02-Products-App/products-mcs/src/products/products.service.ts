@@ -1,4 +1,5 @@
 import {
+  Body,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,6 +10,7 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { withColor } from 'src/utilities/custom-color-loggers';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class ProductsService extends PrismaClient implements OnModuleInit {
@@ -39,17 +41,19 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
 
   // PATH: http://localhost:3001/products?page=1&limit=10
   async findAllWithPagination({ page, limit }: PaginationDto) {
-    // Counting the total number of products in the database to manage pagination
-    const totalPages: number = await this.product.count();
-    // Calculating the last page by dividing the total products
-    // by the limit per page and rounding up, to ensure all products
-    // can be accommodated in the calculated number of pages
-    const lastPage: number = Math.ceil(totalPages / (limit > 0 ? limit : 1));
+    // Ensure 'page' and 'limit' are valid,
+    // positive numbers and not fewer than `1`
+    const validatedPage = Math.max(1, Number(page));
+    // Ensures limit is positive, preventing division by zero
+    const validatedLimit = Math.max(1, Number(limit));
 
-    // Calculating the number of items to skip based on the current
-    // `page number` and `limit`, This is to ensure we start fetching items
-    // from the correct position for the requested page
-    const paginationSkipPages: number = (page - 1) * limit;
+    // Count the total number of products in the database for pagination
+    const totalItems: number = await this.product.count();
+    // Calculating the last page number based on total items and items per page
+    const totalPages: number = Math.ceil(totalItems / validatedLimit);
+
+    // Calculate the offset for the database query based on the current page
+    const paginationSkipPages: number = (validatedPage - 1) * validatedLimit;
 
     // Retrieving a specific subset of products based on the page number.
     // Limit 'skip' determines how many products to bypass, which is
@@ -60,12 +64,21 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
       take: Number(limit),
     });
 
+    // The number of items currently displayed on the page,
+    // which will be equal to the response data length
+    const itemsPerPage: number = responseData.length;
+
     return {
       data: responseData,
       metadata: {
+        // Total number of pages available, based on the `page` count and `limit`
         totalPages: totalPages,
-        currentPage: page,
-        lastPage: lastPage,
+        // The currently requested page
+        currentPage: Number(page),
+        // The last available page is the sum of all pages,
+        // clarifying it's the end of the data set
+        lastPage: totalPages,
+        itemsPerPage: itemsPerPage,
       },
     };
   }
@@ -76,14 +89,26 @@ export class ProductsService extends PrismaClient implements OnModuleInit {
     });
 
     if (!product) {
-      throw new NotFoundException(`Product with id ${id} not found...`);
+      throw new NotFoundException(`Product with id -> #${id} not found...`);
     }
 
     return product;
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: number, @Body() { name, price }: UpdateProductDto) {
+    const foundID = id;
+    console.log({ foundID });
+
+    const updatedData = {
+      where: { id: id },
+      data: { name, price },
+    };
+
+    const response = this.product.update(updatedData)
+
+    return response.catch((_err: unknown): void => {
+      throw new NotFoundException(`Product with ID ${id} not found.`);
+    });
   }
 
   remove(id: number) {

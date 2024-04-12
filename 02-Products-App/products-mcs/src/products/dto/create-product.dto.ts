@@ -13,8 +13,13 @@ export class CreateProductDto {
 	@IsNumber({
 		maxDecimalPlaces: 2
 	})
-	@Type(() => Number)
+	
+	@IsNumber({
+		allowNaN: false,
+		maxDecimalPlaces: 2,
+	})
 	@Min(0)
+	@Type(() => Number)
 	public price: number;
 }
 // _______________________________________________
